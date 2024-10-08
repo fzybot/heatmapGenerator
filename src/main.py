@@ -2,7 +2,6 @@
 import pandas as pd
 import geopandas
 from geodatasets import get_path
-import osmnx as ox
 import seaborn as sns
 import matplotlib.pyplot as plt
 import logging
@@ -53,8 +52,10 @@ def createLocalMapDf(MAX_X, MAX_Y, MAX_LAT, MAX_LON, MIN_LAT, MIN_LON):
 def calc_mean_attribute_val(attName, globalMapDataFrame, fromServerDataFrame):
     print(globalMapDataFrame.head().to_string())
     print(fromServerDataFrame.head().to_string())
+    means_array = []
+    x_array = []
+    y_array = []
     # df = fromServerDataFrame.reset_index()  # make sure indexes pair with number of rows
-
     for globalIndex, globalRow in globalMapDataFrame.iterrows():
         rsrp_by_distance_array = []
         for index, row in fromServerDataFrame[fromServerDataFrame.rsrp < 0].iterrows():
@@ -63,16 +64,34 @@ def calc_mean_attribute_val(attName, globalMapDataFrame, fromServerDataFrame):
             # print(row['geometry'], globalRow['geometry'])
             # print(row['geometry'].distance(globalRow['geometry']))
             d = haversine_distance(row['latitude'], row['longitude'],  globalRow['latitude'], globalRow['longitude'])
-            if d <= 10:
-                print(row['rsrp'])
-                rsrp_by_distance_array.append(d)
-        print("last d per globalRow: ", d)
-        # if rsrp_by_distance_array != []:
-        #     rsrp_distance_series = pd.Series(rsrp_by_distance_array)
-        #     print(rsrp_distance_series.to_string())
-        #     print("Mean = ", rsrp_distance_series.mean())
-        #     time.sleep(10)
-    return globalMapDataFrame
+            if d <= 5:
+                rsrp_by_distance_array.append(row['rsrp'])
+        # print("last d per globalRow: ", d)
+        if rsrp_by_distance_array != []:
+            rsrp_distance_series = pd.Series(rsrp_by_distance_array)
+            means_array.append(rsrp_distance_series.mean())
+            x_array.append(globalRow['x'])
+            y_array.append(globalRow['y'])
+            """
+            keenetic.com/
+            Качество сигнала:	RSRP (дБм)	        RSRQ (дБ)	        SINR/CINR (дБ)
+            очень хорошее	    >= -80	            >= -10	            >= 20
+            хорошее	            от -80 до -90	    от -10 до -15	    от 13 до 20
+            плохое	            от -90 до -100	    от -15 до -20	    от 0 до 13
+            очень плохое	    <= -100	< -120	    <= 0
+            """
+        else:
+            means_array.append(0)
+            x_array.append(globalRow['x'])
+            y_array.append(globalRow['y'])
+        print("calculating: ", (globalIndex / len(globalMapDataFrame)) * 100, "%" )
+    local = {
+        "x": x_array,
+        "y": y_array,
+        "mean_rsrp": means_array
+    }
+    localDf = pd.DataFrame(local)
+    return localDf
 def main():
     # create logger with 'spam_application'
     logger = logging.getLogger("HeatMap")
@@ -82,6 +101,7 @@ def main():
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(CustomFormatter())
     logger.addHandler(ch)
+    logger.addHandler(fh)
     logger.info("Starting Application")
     logger.info("Custom Logger is created")
     # change these to change how detailed the generated image is
@@ -123,7 +143,9 @@ def main():
     # plt.show()
     logger.info("Вычисляем значения каждого пикселя по атрибуту: ")
     time.sleep(1)
-    calc_mean_attribute_val('rsrp', gdf_pix_map_in_ll, gdf)
+    mean_rsrp_df = calc_mean_attribute_val('rsrp', gdf_pix_map_in_ll, gdf)
+    mean_rsrp_df.to_json('mean_rsrp_df.json', orient='split', compression='infer', index='true')
+
 
 
 if __name__ == "__main__":
