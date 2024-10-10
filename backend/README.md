@@ -8,9 +8,9 @@
 ## Run
 ### Linux
 ```
-fastapi dev backend/app/main.py
+fastapi dev /app/main.py
 ```
 ### Windows
 ```
-fastapi.exe dev .\backend\app\main.py
+fastapi.exe dev .\app\main.py
 ```
