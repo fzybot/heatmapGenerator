@@ -5,23 +5,17 @@ import asyncio
 
 from app.api.main import api_router
 
+async def my_background_task():
+    while True:
+        await asyncio.sleep(1)
+        print("hello")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(my_background_task()())
+    yield
 
-class BackgroundRunner:
-    def __init__(self):
-        self.value = 0
-
-    async def run_main(self):
-        while True:
-            await asyncio.sleep(0.1)
-            print("message")
-
-runner = BackgroundRunner()
-
-@app.on_event('startup')
-async def app_startup():
-    asyncio.create_task(runner.run_main())
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 async def root( ):
