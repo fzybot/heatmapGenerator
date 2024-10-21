@@ -12,7 +12,7 @@ async def my_background_task():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(my_background_task()())
+    asyncio.create_task(my_background_task())
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -20,6 +20,9 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/")
 async def root( ):
     return {"message": "Hello World"}
+@app.get("/local_test")
+async def local_test( ):
+    return {"message": "from local test"}
 
 app.include_router(api_router)
 
